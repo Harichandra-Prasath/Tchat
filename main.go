@@ -13,6 +13,6 @@ func init() {
 
 func main() {
 	hServer := httpserver.NewHTTPServer(httpserver.ServerConfig{Host: os.Getenv("HOST"), Port: os.Getenv("PORT")})
-	logging.Logger.Info("HTTP Server Started", "Host", os.Getenv("HOST"), "Port", os.Getenv("Port"))
+	logging.Logger.Info("HTTP Server Started", "Host", os.Getenv("HOST"), "Port", os.Getenv("PORT"))
 	hServer.ListenAndServe()
 }

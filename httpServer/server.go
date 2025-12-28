@@ -27,6 +27,6 @@ func NewHTTPServer(cfg ServerConfig) *http.Server {
 func registerRoutes(m *http.ServeMux) {
 
 	// Core Endpoints
-	m.HandleFunc("POST /api/send-message", sendMessageHandler)
-	m.HandleFunc("GET /api/events", sseHandler)
+	m.Handle("POST /api/send-message", chain(sendMessageHandler(), loggingMiddleware, authMiddleware, validatorMiddleware[message]()))
+	m.Handle("GET /api/events", chain(sendMessageHandler(), loggingMiddleware, authMiddleware))
 }
