@@ -16,7 +16,17 @@ type registerUserSchema struct {
 	Password string `json:"password" validate:"required,min=8,max=16"`
 }
 
+type loginSchema struct {
+	Username string `json:"username" validate:"required"`
+	Password string `json:"password" validate:"required"`
+}
+
 type registerUserResponseSchema struct {
 	Id      uuid.UUID `json:"id"`
 	Message string    `json:"message"`
+}
+
+type loginResponseSchema struct {
+	Token   string `json:"token"`
+	Message string `json:"message"`
 }

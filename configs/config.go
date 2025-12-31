@@ -3,7 +3,8 @@ package configs
 import "os"
 
 type TableConfig struct {
-	UsersTable string
+	UsersTable    string
+	SessionsTable string
 }
 
 type GeneralConfig struct {
@@ -16,6 +17,6 @@ var GnCfg *GeneralConfig
 
 func InitialiseConfigs() {
 
-	TbCfg = &TableConfig{UsersTable: os.Getenv("USERS_TABLE")}
+	TbCfg = &TableConfig{UsersTable: os.Getenv("USERS_TABLE"), SessionsTable: os.Getenv("SESSIONS_TABLE")}
 	GnCfg = &GeneralConfig{Host: os.Getenv("Host"), Port: os.Getenv("PORT")}
 }
