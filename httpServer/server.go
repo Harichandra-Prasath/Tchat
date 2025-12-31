@@ -28,5 +28,8 @@ func registerRoutes(m *http.ServeMux) {
 
 	// Core Endpoints
 	m.Handle("POST /api/send-message", chain(sendMessageHandler(), loggingMiddleware, authMiddleware, validatorMiddleware[sendMessageSchema]()))
-	m.Handle("GET /api/events", chain(sendMessageHandler(), loggingMiddleware, authMiddleware))
+	m.Handle("GET /api/events", chain(sseHandler(), loggingMiddleware, authMiddleware))
+
+	// Auth Endpoints
+	m.Handle("POST /api/auth/register", chain(registerHandler(), loggingMiddleware, authMiddleware, validatorMiddleware[registerUserSchema]()))
 }

@@ -1,12 +1,11 @@
 package utils
 
-import "crypto/sha256"
+import (
+	"golang.org/x/crypto/bcrypt"
+)
 
 func HashPassword(password string) string {
 
-	h := sha256.New()
-	h.Write([]byte(password))
-	bs := h.Sum(nil)
-
-	return string(bs)
+	hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(hash)
 }

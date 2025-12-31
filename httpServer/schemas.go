@@ -1,5 +1,7 @@
 package httpserver
 
+import "github.com/google/uuid"
+
 type messageMetadata struct{}
 
 type sendMessageSchema struct {
@@ -10,6 +12,11 @@ type sendMessageSchema struct {
 }
 
 type registerUserSchema struct {
-	Username string `json:"username" validate:"required, min=3, max=12"`
-	Password string `json:"password" validate:"required, min=8, max=16"`
+	Username string `json:"username" validate:"required,min=3,max=12"`
+	Password string `json:"password" validate:"required,min=8,max=16"`
+}
+
+type registerUserResponseSchema struct {
+	Id      uuid.UUID `json:"id"`
+	Message string    `json:"message"`
 }
