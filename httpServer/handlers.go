@@ -48,7 +48,7 @@ func loginHandler() http.Handler {
 
 		token := base64.RawURLEncoding.EncodeToString(raw)
 
-		hashedToken := utils.HashPassword(token)
+		hashedToken := utils.HashToken(token)
 
 		var s db.SessionModel
 		s.UserId = user.Id

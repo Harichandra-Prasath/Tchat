@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	"github.com/Harichandra-Prasath/Tchat/configs"
+	"github.com/Harichandra-Prasath/Tchat/utils"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -37,4 +39,22 @@ func GetUser(username string) (*UserModel, error) {
 
 	return &u, nil
 
+}
+
+func GetSession(token string) (uuid.UUID, error) {
+
+	tokenHash := utils.HashToken(token)
+	var userId uuid.UUID
+	query := fmt.Sprintf(`SELECT user_id FROM %s WHERE token = $1 AND expires_at>now()`, configs.TbCfg.SessionsTable)
+
+	err := DBPool.QueryRow(context.Background(), query, tokenHash).Scan(&userId)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return uuid.Nil, SessionDoesNotExistsError
+		}
+
+		return uuid.Nil, err
+	}
+
+	return userId, nil
 }

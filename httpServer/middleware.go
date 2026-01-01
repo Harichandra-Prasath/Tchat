@@ -3,15 +3,21 @@ package httpserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/Harichandra-Prasath/Tchat/db"
 	"github.com/Harichandra-Prasath/Tchat/logging"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 )
 
 type middleware func(http.Handler) http.Handler
 type ctxKey[T any] struct{}
+
+type userIdKey uuid.UUID
 
 func chain(h http.Handler, m ...middleware) http.Handler {
 	for i := len(m) - 1; i >= 0; i-- {
@@ -29,8 +35,41 @@ func loggingMiddleware(next http.Handler) http.Handler {
 }
 
 func authMiddleware(next http.Handler) http.Handler {
+
+	var key userIdKey
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r)
+
+		tokenHeader := r.Header.Get("Authorization")
+		if tokenHeader == "" {
+			logging.Logger.Info("Authorization header missing")
+			http.Error(w, "Auth header missing", 401)
+			return
+		}
+
+		if !strings.HasPrefix(tokenHeader, "Bearer") {
+			logging.Logger.Info("Invalid Auth Header. Bearer Missing")
+			http.Error(w, "Invalid Auth Header. Bearer Missing", 401)
+			return
+		}
+
+		token := strings.Split(tokenHeader, " ")[1]
+
+		userId, err := db.GetSession(token)
+		if err != nil {
+			if errors.Is(err, db.SessionDoesNotExistsError) {
+				http.Error(w, "Session doesn't exist. Please login again", 401)
+				return
+			}
+
+			logging.Logger.Error("Auth Failed", "err", err.Error())
+			http.Error(w, "Auth Failed", 500)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), key, userId)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
