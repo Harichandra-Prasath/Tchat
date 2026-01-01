@@ -25,6 +25,22 @@ func IsUserExists(username string) (bool, error) {
 
 }
 
+func GetUserbyID(id uuid.UUID) (*UserModel, error) {
+
+	var u UserModel
+	query := fmt.Sprintf(`SELECT id,username FROM %s WHERE id = $1`, configs.TbCfg.UsersTable)
+	err := DBPool.QueryRow(context.Background(), query, id).Scan(&u.Id, &u.Username)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, UserDoesNotExistsError
+		}
+		return nil, err
+	}
+
+	return &u, nil
+
+}
+
 func GetUser(username string) (*UserModel, error) {
 
 	var u UserModel

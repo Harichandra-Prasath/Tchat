@@ -3,7 +3,15 @@ package httpserver
 import (
 	"fmt"
 	"net/http"
+	"sync"
 )
+
+type message struct {
+	Sender  string `json:"sender"`
+	Message string `json:"message"`
+}
+
+var ChnMapper = sync.Map{}
 
 type ServerConfig struct {
 	Host string

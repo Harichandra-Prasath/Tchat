@@ -5,7 +5,6 @@ import "github.com/google/uuid"
 type messageMetadata struct{}
 
 type sendMessageSchema struct {
-	Sender   string          `json:"sender" validate:"required"`
 	Metadata messageMetadata `json:"metadata"`
 	Message  string          `json:"message" validate:"required"`
 	Reciever string          `json:"reciever" validate:"required"`

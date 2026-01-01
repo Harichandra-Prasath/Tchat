@@ -5,21 +5,83 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/Harichandra-Prasath/Tchat/db"
 	"github.com/Harichandra-Prasath/Tchat/logging"
 	"github.com/Harichandra-Prasath/Tchat/utils"
+	"github.com/google/uuid"
 )
 
 func sendMessageHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var userKey userIdKey
+		userId := r.Context().Value(userKey).(uuid.UUID)
+
+		var dataKey ctxKey[sendMessageSchema]
+		reqData := r.Context().Value(dataKey).(sendMessageSchema)
+
+		sender, err := db.GetUserbyID(userId)
+		if err != nil {
+			logging.Logger.Error("Fetching the user", "err", err.Error())
+			http.Error(w, "Send Message Failed", 500)
+			return
+		}
+
+		// check for the reciever
+		reciever, err := db.GetUser(reqData.Reciever)
+		if err != nil {
+			if errors.Is(err, db.UserDoesNotExistsError) {
+				logging.Logger.Info("User Doesnt Exist")
+				http.Error(w, "Invalid Reciever", 400)
+				return
+			}
+			logging.Logger.Error("Error in Getting the Reciever", "err", err.Error())
+			http.Error(w, "Send message Failed", 500)
+			return
+		}
+
+		chn := getChannel(reciever.Id)
+		m := message{Sender: sender.Username, Message: reqData.Message}
+
+		chn <- &m
+
+		w.WriteHeader(201)
+		w.Write([]byte("Message Produced"))
 	})
 }
 
 func sseHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		var key userIdKey
+		userId := r.Context().Value(key).(uuid.UUID)
+
+		chn := getChannel(userId)
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("connection", "keep-alive")
+		w.Header().Set("cache-control", "no-cache")
+
+		flusher, _ := w.(http.Flusher)
+
+		for {
+			select {
+			case <-r.Context().Done():
+				return
+
+			case m := <-chn:
+				data, _ := json.Marshal(m)
+				fmt.Fprintf(w, "event: message\n")
+				fmt.Fprintf(w, "data: %s\n\n", data)
+				flusher.Flush()
+
+			}
+		}
+
+	})
 }
 
 func loginHandler() http.Handler {
@@ -36,6 +98,7 @@ func loginHandler() http.Handler {
 			}
 			logging.Logger.Error("Error in Getting the User", "err", err.Error())
 			http.Error(w, "Login Failed", 500)
+			return
 		}
 
 		if !utils.VerifyPassword(user.Password, reqData.Password) {
