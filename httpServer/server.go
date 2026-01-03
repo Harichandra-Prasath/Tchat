@@ -41,4 +41,5 @@ func registerRoutes(m *http.ServeMux) {
 	// Auth Endpoints
 	m.Handle("POST /api/auth/register", chain(registerHandler(), loggingMiddleware, validatorMiddleware[registerUserSchema]()))
 	m.Handle("POST /api/auth/login", chain(loginHandler(), loggingMiddleware, validatorMiddleware[loginSchema]()))
+	m.Handle("GET /api/auth/logout", chain(logoutHandler(), loggingMiddleware, authMiddleware))
 }

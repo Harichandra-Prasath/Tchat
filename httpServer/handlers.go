@@ -143,6 +143,13 @@ func loginHandler() http.Handler {
 		s.CreatedAt = time.Now()
 		s.ExpiresAt = s.CreatedAt.Add(30 * 24 * time.Hour)
 
+		err = db.DeleteSession(user.Id)
+		if err != nil {
+			logging.Logger.Error("Error in Login", "err", err.Error())
+			http.Error(w, "Login Failed", 500)
+			return
+		}
+
 		err = db.CreateSession(&s)
 		if err != nil {
 			logging.Logger.Error("Error in Login", "err", err.Error())
@@ -162,6 +169,21 @@ func loginHandler() http.Handler {
 
 	})
 
+}
+
+func logoutHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var key ctxUser
+		user := r.Context().Value(key).(*db.UserModel)
+		err := db.DeleteSession(user.Id)
+		if err != nil {
+			logging.Logger.Error("Error in Logout", "err", err.Error())
+			http.Error(w, "Logout Failed", 500)
+			return
+		}
+		w.WriteHeader(200)
+		w.Write([]byte("Logout Successfull"))
+	})
 }
 
 func registerHandler() http.Handler {

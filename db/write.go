@@ -31,16 +31,18 @@ func CreateUser(user *UserModel) (uuid.UUID, error) {
 	return id, nil
 }
 
-func CreateSession(session *SessionModel) error {
-
+func DeleteSession(userId uuid.UUID) error {
 	deleteQuery := fmt.Sprintf(`DELETE FROM %s WHERE user_id=$1`, configs.TbCfg.SessionsTable)
-	_, err := DBPool.Exec(context.Background(), deleteQuery, session.UserId)
+	_, err := DBPool.Exec(context.Background(), deleteQuery, userId)
 	if err != nil {
-		return fmt.Errorf("deleting last session: %s", err.Error())
+		return fmt.Errorf("deleting user session: %s", err.Error())
 	}
+	return nil
+}
 
+func CreateSession(session *SessionModel) error {
 	writeQuery := fmt.Sprintf(`INSERT INTO %s (token,user_id,created_at,expires_at) VALUES ($1, $2, $3, $4)`, configs.TbCfg.SessionsTable)
-	_, err = DBPool.Exec(context.Background(), writeQuery, session.Token, session.UserId, session.CreatedAt, session.ExpiresAt)
+	_, err := DBPool.Exec(context.Background(), writeQuery, session.Token, session.UserId, session.CreatedAt, session.ExpiresAt)
 	if err != nil {
 		return fmt.Errorf("inserting session: %s", err.Error())
 	}
