@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Harichandra-Prasath/Tchat/configs"
+	"github.com/Harichandra-Prasath/Tchat/logging"
 	ampq "github.com/rabbitmq/amqp091-go"
 )
 
@@ -13,7 +14,7 @@ type Event struct {
 	Data []byte
 }
 
-var rmqChn *ampq.Channel
+var rmqConn *ampq.Connection
 
 func IntialiseBroker() error {
 	conn, err := ampq.Dial(fmt.Sprintf("amqp://%s:%s@%s:%s/", configs.GnCfg.RMQUser, configs.GnCfg.RMQPassword, configs.GnCfg.RMQHost, configs.GnCfg.RMQPort))
@@ -24,24 +25,35 @@ func IntialiseBroker() error {
 	if err != nil {
 		return fmt.Errorf("creating conn channel: %s", err.Error())
 	}
-
+	defer ch.Close()
 	err = ch.ExchangeDeclare(configs.GnCfg.RMQUserExchange, "direct", true, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("declaring the exchange: %s", err.Error())
 	}
 
-	rmqChn = ch
+	rmqConn = conn
 
 	return nil
 }
 
 func PublishEvents(event *Event) error {
-	q, err := rmqChn.QueueDeclare("users."+event.DSN, true, false, false, false, nil)
+	ch, err := rmqConn.Channel()
+	if err != nil {
+		return fmt.Errorf("creating conn channel: %s", err.Error())
+	}
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare("users."+event.DSN, true, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("declaring queue: %s", err.Error())
 	}
 
-	err = rmqChn.Publish(configs.GnCfg.RMQUserExchange, q.Name, false, false, ampq.Publishing{ContentType: "application/json", Body: event.Data})
+	err = ch.QueueBind(q.Name, event.DSN, configs.GnCfg.RMQUserExchange, false, nil)
+	if err != nil {
+		return fmt.Errorf("binding queue: %s", err.Error())
+	}
+
+	err = ch.Publish(configs.GnCfg.RMQUserExchange, event.DSN, false, false, ampq.Publishing{ContentType: "application/json", Body: event.Data, DeliveryMode: 2, Headers: ampq.Table{"type": event.Type}})
 	if err != nil {
 		return fmt.Errorf("publishing message: %s", err.Error())
 	}
@@ -49,19 +61,29 @@ func PublishEvents(event *Event) error {
 	return nil
 }
 
-func ConsumeEvents(ch chan *Event, DSN string) error {
-	q, err := rmqChn.QueueDeclare("users."+DSN, true, false, false, false, nil)
+func ConsumeEvents(evch chan *Event, DSN string) error {
+	ch, err := rmqConn.Channel()
+	if err != nil {
+		return fmt.Errorf("creating conn channel: %s", err.Error())
+	}
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare("users."+DSN, true, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("declaring queue: %s", err.Error())
 	}
 
-	msgs, err := rmqChn.Consume(q.Name, configs.GnCfg.RMQUserExchange, true, false, false, false, nil)
-	if err != nil {
-		return fmt.Errorf("registering the consumer: %s", err.Error())
-	}
-
-	for d := range msgs {
-		ch <- &Event{DSN: DSN, Data: d.Body}
+	for {
+		msg, ok, err := ch.Get(q.Name, false)
+		if err != nil {
+			logging.Logger.Error("Message Consuming", "err", err.Error())
+			continue
+		}
+		if !ok {
+			break
+		}
+		evch <- &Event{Type: msg.Headers["type"].(string), Data: msg.Body, DSN: DSN}
+		msg.Ack(false)
 	}
 
 	return nil

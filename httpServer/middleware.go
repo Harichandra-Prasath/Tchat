@@ -11,13 +11,12 @@ import (
 	"github.com/Harichandra-Prasath/Tchat/db"
 	"github.com/Harichandra-Prasath/Tchat/logging"
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 )
 
 type middleware func(http.Handler) http.Handler
 type ctxKey[T any] struct{}
 
-type userIdKey uuid.UUID
+type ctxUser db.UserModel
 
 func chain(h http.Handler, m ...middleware) http.Handler {
 	for i := len(m) - 1; i >= 0; i-- {
@@ -36,7 +35,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 func authMiddleware(next http.Handler) http.Handler {
 
-	var key userIdKey
+	var key ctxUser
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -67,7 +66,14 @@ func authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), key, userId)
+		user, err := db.GetUserbyID(userId)
+		if err != nil {
+			logging.Logger.Error("Auth Failed", "err", err.Error())
+			http.Error(w, "Auth Failed", 500)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), key, user)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
